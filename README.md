@@ -61,7 +61,7 @@ The application follows a professional **5-layer architecture**:
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/YOUR_USERNAME/final-exam-scheduler.git
+git clone https://github.com/Faroukemam/final-exam-scheduler.git
 cd final-exam-scheduler
 ```
 
@@ -76,7 +76,7 @@ python main.py
 ```
 
 ### Using Pre-built EXE (Windows)
-Download `FinalExamScheduler.exe` from the [Releases](https://github.com/YOUR_USERNAME/final-exam-scheduler/releases) page and run directly.
+Download `FinalExamScheduler.exe` from the [Releases](https://github.com/Faroukemam/final-exam-scheduler/releases) page and run directly.
 
 ## 📖 Usage
 
@@ -195,7 +195,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🐛 Issues & Contributions
 
-Found a bug or want to contribute? Please open an issue or submit a pull request on [GitHub](https://github.com/YOUR_USERNAME/final-exam-scheduler).
+Found a bug or want to contribute? Please open an issue or submit a pull request on [GitHub](https://github.com/Faroukemam/final-exam-scheduler).
 
 ## 📊 Version
 

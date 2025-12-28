@@ -5,7 +5,7 @@ Thank you for your interest in contributing! This document provides guidelines f
 ## 🤝 How to Contribute
 
 ### Reporting Issues
-1. Check if the issue already exists in [GitHub Issues](https://github.com/YOUR_USERNAME/final-exam-scheduler/issues)
+1. Check if the issue already exists in [GitHub Issues](https://github.com/Faroukemam/final-exam-scheduler/issues)
 2. If not, create a new issue with:
    - Clear title
    - Detailed description
