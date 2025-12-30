@@ -49,21 +49,23 @@ def generate_exam_scheduler_templates(output_dir="."):
         'Program': ['CS', 'CS', 'CS', 'IS', 'IS', 'AI', 'AI', 'ALL', 'ALL', 'ALL'],
         'ExamGroup': ['GRP_CS1', 'GRP_CS2', 'GRP_CS3', 'GRP_IS1', 'GRP_IS2', 'GRP_AI1', 'GRP_AI2', 
                      'GRP_MATH', 'GRP_PHYS', 'GRP_STAT'],
-        'DurationMin': [120, 120, 150, 120, 150, 180, 180, 120, 120, 120]
+        'DurationMin': [120, 120, 150, 120, 150, 180, 180, 120, 120, 120],
+        'Terminated': ['', '', '', '', '', '', '', '', '', '']  # Use Yes/True/1 to exclude course
     }
     courses_df = pd.DataFrame(courses_data)
     
     courses_readme = pd.DataFrame({
-        'Column': ['CourseCode', 'CourseName', 'Program', 'ExamGroup', 'DurationMin'],
+        'Column': ['CourseCode', 'CourseName', 'Program', 'ExamGroup', 'DurationMin', 'Terminated'],
         'Description': [
             'Unique course code (must match Regs file)',
             'Full course name for reports',
             'Program code. Use "ALL" for shared courses',
             'Grouping for scheduling (same group = scheduled together)',
-            'Exam duration in minutes'
+            'Exam duration in minutes',
+            'OPTIONAL: Yes/True/1 to exclude from scheduling'
         ],
-        'Format': ['Text', 'Text', 'Text', 'Text', 'Number'],
-        'Example': ['CS101', 'Intro to Programming', 'CS', 'GRP_CS1', '120']
+        'Format': ['Text', 'Text', 'Text', 'Text', 'Number', 'Text'],
+        'Example': ['CS101', 'Intro to Programming', 'CS', 'GRP_CS1', '120', '']
     })
     
     with pd.ExcelWriter(f"{output_dir}/template_courses_master.xlsx", engine='openpyxl') as writer:
@@ -297,20 +299,22 @@ def generate_courses_report_templates(output_dir="."):
         'Program': ['CS', 'CS', 'CS', 'IS', 'IS', 'AI', 'AI', 'ALL', 'ALL', 'ALL'],
         'ExamGroup': ['GRP_CS1', 'GRP_CS2', 'GRP_CS3', 'GRP_IS1', 'GRP_IS2', 'GRP_AI1', 'GRP_AI2', 
                      'GRP_MATH', 'GRP_PHYS', 'GRP_STAT'],
-        'DurationMin': [120, 120, 150, 120, 150, 180, 180, 120, 120, 120]
+        'DurationMin': [120, 120, 150, 120, 150, 180, 180, 120, 120, 120],
+        'Terminated': ['', '', '', '', '', '', '', '', '', '']  # OPTIONAL column
     }
     courses_df = pd.DataFrame(courses_data)
     
     courses_readme = pd.DataFrame({
-        'Column': ['CourseCode', 'CourseName', 'Program', 'ExamGroup', 'DurationMin'],
+        'Column': ['CourseCode', 'CourseName', 'Program', 'ExamGroup', 'DurationMin', 'Terminated'],
         'Description': [
             'Course unique code',
             'Course full name',
             'Owning program ("ALL" for shared)',
             'Exam grouping identifier',
-            'Exam duration in minutes'
+            'Exam duration in minutes',
+            'OPTIONAL: Yes/True/1 to exclude'
         ],
-        'Example': ['CS101', 'Programming', 'CS', 'GRP_CS1', '120']
+        'Example': ['CS101', 'Programming', 'CS', 'GRP_CS1', '120', '']
     })
     
     with pd.ExcelWriter(f"{output_dir}/template_courses_for_report.xlsx", engine='openpyxl') as writer:

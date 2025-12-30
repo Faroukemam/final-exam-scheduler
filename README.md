@@ -15,6 +15,7 @@ A professional Windows desktop application for scheduling university final exams
 - **Capacity Management**: Respects room/slot capacity constraints
 - **Rest Days**: Configurable rest periods between exams for students
 - **Fixed Assignments**: Support for pre-scheduled exams
+- **Terminated Courses**: Easily exclude discontinued courses from scheduling
 - **Load Balancing**: Distributes exams evenly across available slots
 
 ### 🔍 Diagnostics & Validation
@@ -156,7 +157,7 @@ See `requirements.txt` for complete list.
 
 ### Exam Scheduler Inputs
 1. **Regs** (Registrations): Student ID, Name, Program, Courses
-2. **Courses Master**: Course Code, Name, Program, Exam Group, Duration
+2. **Courses Master**: Course Code, Name, Program, Exam Group, Duration, Terminated (Optional)
 3. **Calendar**: Available exam dates and time slots
 4. **Slot Capacity**: Maximum students per slot
 5. **Constraints** (Optional): Fixed assignments, optimization weights
@@ -198,6 +199,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Found a bug or want to contribute? Please open an issue or submit a pull request on [GitHub](https://github.com/Faroukemam/final-exam-scheduler).
 
 ## 📊 Version
+ 
+**v1.2** - Enhanced Features & Stability
+- Added **Terminated Courses** support (Program-specific or Global)
+- Fixed **Diagnostics** for optional files
+- Improved **PyInstaller** build stability (bundled OR-Tools)
+- Updated templates with new columns
 
 **v1.1** - Layered Architecture Edition
 - Complete refactoring to 5-layer architecture

@@ -17,66 +17,24 @@ from data.templates import template_generator
 from utils.async_utils import run_async
 
 # Business Layer
-try:
-    import exam_optimizer
-    import invigilation_optimizer
-except ImportError as e:
-    pass  # Managed in the functions
+# Business Layer - Direct imports
+from business.exam_scheduling import scheduler as exam_optimizer
+from business.invigilation import scheduler as invigilation_optimizer
 
-# Note: ThreadedTask and run_async now imported from utils.async_utils
 
-# Keeping local legacy placeholder for compatibility (can be removed later)
-# class ThreadedTask(threading.Thread):
-    def __init__(self, task_func, on_success, on_error):
-        super().__init__()
-        self.task_func = task_func
-        self.on_success = on_success
-        self.on_error = on_error
-        self.daemon = True
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
 
-    def run(self):
-        try:
-            result = self.task_func()
-            self.on_success(result)
-        except Exception as e:
-            self.on_error(e)
+    return os.path.join(base_path, relative_path)
 
-def run_async(root, func, on_success_callback, on_error_callback, status_label=None, buttons_to_disable=None):
-    """Run func() in thread with proper error handling."""
-    if buttons_to_disable:
-        for b in buttons_to_disable:
-            b.config(state='disabled')
-            
-    if status_label:
-        status_label.config(text="⏳ Running...", foreground=COLORS['accent_secondary'])
 
-    def _on_success_thread(result):
-        root.after(0, lambda: _on_success_main(result))
 
-    def _on_error_thread(e):
-        root.after(0, lambda err=e: _on_error_main(err))
 
-    def _on_success_main(result):
-        if buttons_to_disable:
-            for b in buttons_to_disable:
-                b.config(state='normal')
-        if status_label:
-            status_label.config(text="✓ Done", foreground=COLORS['accent_success'])
-        try:
-            on_success_callback(result)
-        except Exception as e:
-            _on_error_main(e)
-
-    def _on_error_main(e):
-        if buttons_to_disable:
-            for b in buttons_to_disable:
-                b.config(state='normal')
-        if status_label:
-            status_label.config(text="✗ Error", foreground=COLORS['accent_error'])
-        on_error_callback(e)
-
-    task = ThreadedTask(func, _on_success_thread, _on_error_thread)
-    task.start()
 
 class ModernButton(tk.Canvas):
     """Custom modern button with hover effects."""
@@ -331,7 +289,8 @@ def open_exam_scheduler(root):
     status_lbl.pack(pady=15)
     
     def run_logic():
-        import exam_optimizer 
+        # Using top-level import of exam_optimizer
+        
         
         regs = app.get_path("regs")
         master = app.get_path("master")
@@ -342,6 +301,9 @@ def open_exam_scheduler(root):
         
         if not (regs and master and cal and cap):
             raise ValueError("Please select all required input files.")
+        
+        if not out:
+            raise ValueError("Please select an output file path.")
             
         rest = int(e_rest.get())
         
@@ -377,6 +339,7 @@ def open_diagnostics(root):
     app.add_file_picker("Courses Master:", "master")
     app.add_file_picker("Calendar:", "cal", "")
     app.add_file_picker("Slot Capacity:", "cap", "")
+    app.add_file_picker("Constraints:", "cons", "")  # Optional constraints for validation
     app.add_save_picker("Output Path:", "out", "Diagnostics.xlsx")
     
     status_lbl = tk.Label(app.top, text="Ready", font=('Segoe UI', 10),
@@ -384,30 +347,84 @@ def open_diagnostics(root):
     status_lbl.pack(pady=15)
     
     def run_logic():
-        import exam_optimizer
+        # Using top-level import of exam_optimizer
+        import tempfile
+        import pandas as pd
         
         regs = app.get_path("regs")
         master = app.get_path("master")
-        cal = app.get_path("cal") or "dummy"
-        cap = app.get_path("cap") or "dummy"
-        cons = ""
+        cal = app.get_path("cal")
+        cap = app.get_path("cap")
+        cons = app.get_path("cons")  # Optional user constraints
         out = app.get_path("out")
         
         if not (regs and master):
              raise ValueError("Regs and Master are minimum required.")
-
-        diag, dfs = exam_optimizer.run_final_exam_scheduler(
-            regs_path=regs,
-            courses_master_path=master,
-            calendar_path=cal,
-            slot_capacity_path=cap,
-            constraints_path=cons,
-            output_path=out,
-            diagnostics_only=True
-        )
         
-        exam_optimizer.save_diagnostics_excel(dfs, out)
-        return out
+        if not out:
+             raise ValueError("Please select an output file path.")
+        
+        # Make sure it's an absolute path, not just a filename  
+        if not os.path.isabs(out):
+             raise ValueError(f"Please click 'Save As' button to select full path. You entered: '{out}'")
+        
+        # For diagnostics, create minimal dummy files if calendar/capacity not provided
+        temp_files = []
+        try:
+            if not cal:
+                tf = tempfile.NamedTemporaryFile(mode='w', suffix='.xlsx', delete=False)
+                cal = tf.name
+                temp_files.append(cal)
+                # Create minimal calendar
+                pd.DataFrame({
+                    'Date': ['2025-05-20'],
+                    'SlotID': ['Morning'],
+                    'Start': ['09:00'],
+                    'End': ['12:00']
+                }).to_excel(cal, sheet_name='Calendar', index=False)
+            
+            if not cap:
+                tf = tempfile.NamedTemporaryFile(mode='w', suffix='.xlsx', delete=False)
+                cap = tf.name  
+                temp_files.append(cap)
+                # Create minimal capacity
+                pd.DataFrame({
+                    'Date': ['2025-05-20'],
+                    'SlotID': ['Morning'],
+                    'CapacityStudents': [999999]
+                }).to_excel(cap, sheet_name='SlotCapacity', index=False)
+            
+            # Create empty constraints file ONLY if not provided by user
+            if not cons:
+                tf_cons = tempfile.NamedTemporaryFile(mode='w', suffix='.xlsx', delete=False)
+                cons = tf_cons.name
+                temp_files.append(cons)
+                pd.DataFrame(columns=['ExamGroup', 'Date', 'SlotID']).to_excel(
+                    cons, sheet_name='FixedAssignments', index=False)
+                # Add empty BalanceSettings sheet
+                with pd.ExcelWriter(cons, engine='openpyxl', mode='a') as writer:
+                    pd.DataFrame(columns=['WeightCapacity', 'WeightRestViolation', 'WeightSpread']).to_excel(
+                        writer, sheet_name='BalanceSettings', index=False)
+
+            diag, dfs = exam_optimizer.run_final_exam_scheduler(
+                regs_path=regs,
+                courses_master_path=master,
+                calendar_path=cal,
+                slot_capacity_path=cap,
+                constraints_path=cons,
+                output_path=out,
+                diagnostics_only=True
+            )
+            
+            exam_optimizer.save_diagnostics_excel(dfs, out)
+            return out
+        finally:
+            # Clean up temp files
+            for tf in temp_files:
+                try:
+                    os.remove(tf)
+                except:
+                    pass
 
     def on_ok(res):
         messagebox.showinfo("Success", f"Diagnostics saved:\n{res}")
@@ -434,13 +451,16 @@ def open_courses_report(root):
     status_lbl.pack(pady=15)
     
     def run_logic():
-        import exam_optimizer
+        # Using top-level import of exam_optimizer
         regs = app.get_path("regs")
         master = app.get_path("master")
         out = app.get_path("out")
         
         if not (regs and master):
              raise ValueError("Select inputs.")
+        
+        if not out:
+             raise ValueError("Please select an output file path.")
              
         report, issues = exam_optimizer.generate_courses_report(regs, master)
         exam_optimizer.save_courses_report_excel(report, issues, out)
@@ -597,6 +617,14 @@ def show_about_dialog(parent):
 def main():
     root = tk.Tk()
     root.title("Final Exam Scheduler v1.1")
+    
+    # Set window icon using resource_path
+    try:
+        icon_path = resource_path("assets/logo.ico")
+        root.iconbitmap(icon_path)
+    except Exception:
+        pass
+
     root.geometry("520x620")
     root.configure(bg=COLORS['bg_dark'])
     
@@ -607,17 +635,19 @@ def main():
     
     # Logo
     logo_loaded = False
-    if os.path.exists("assets/logo.png"):
-        try:
-            img = tk.PhotoImage(file="assets/logo.png")
+    try:
+        # Try loading logo from resource path
+        logo_path = resource_path("assets/logo.png")
+        if os.path.exists(logo_path):
+            img = tk.PhotoImage(file=logo_path)
             # Subsample to smaller size
             img = img.subsample(3, 3)
             lbl = tk.Label(header_frame, image=img, bg=COLORS['bg_medium'])
             lbl.image = img
             lbl.pack(pady=10)
             logo_loaded = True
-        except:
-            pass
+    except Exception:
+        pass
     
     if not logo_loaded:
         tk.Label(header_frame, text="📊", font=('Segoe UI', 32),

@@ -157,25 +157,6 @@ def _load_inputs(
     courses_df["CourseCode"] = courses_df["CourseCode"].astype(str).str.strip()
     courses_df["Program"] = courses_df["Program"].apply(normalize_program)
     courses_df["ExamGroup"] = courses_df["ExamGroup"].apply(normalize_str)
-    
-    # Handle Terminated column (optional)
-    terminated_courses = set()  # Track terminated course codes
-    if "Terminated" not in courses_df.columns:
-        courses_df["Terminated"] = False
-    else:
-        # Convert to boolean - accept Yes/True/1/Y as terminated
-        courses_df["Terminated"] = courses_df["Terminated"].apply(
-            lambda x: str(x).strip().upper() in ("YES", "TRUE", "1", "Y", "TERMINATED")
-        )
-        # Store terminated (CourseCode, Program) keys
-        terminated_courses = set(
-            zip(courses_df[courses_df["Terminated"]]["CourseCode"], 
-                courses_df[courses_df["Terminated"]]["Program"])
-        )
-    
-    # Filter out terminated courses
-    courses_df = courses_df[~courses_df["Terminated"]].copy()
-    
     if "CourseName" not in courses_df.columns:
         courses_df["CourseName"] = ""
     courses_df["CourseName"] = courses_df["CourseName"].apply(normalize_str)
@@ -213,47 +194,24 @@ def _load_inputs(
         fixed_df["ExamGroup"] = fixed_df["ExamGroup"].apply(normalize_str)
         fixed_df["DateN"] = fixed_df["Date"].apply(normalize_date_ignore_year)
         fixed_df["SlotKey"] = fixed_df["DateN"].astype(str) + " | " + fixed_df["SlotID"].astype(str)
-        
-        # Filter fixed_df to only include ExamGroups that exist in active courses
-        active_groups = set(courses_df["ExamGroup"].unique())
-        # Add filtering logic
-        fixed_df = fixed_df[fixed_df["ExamGroup"].isin(active_groups)].copy()
 
-    return regs_df, courses_df, cal_df, cap_df, fixed_df, balance_df, terminated_courses
+    return regs_df, courses_df, cal_df, cap_df, fixed_df, balance_df
 
 
-def _build_enrollments(regs_df, courses_df, terminated_courses=None) -> Tuple["pd.DataFrame", "pd.DataFrame"]:
+def _build_enrollments(regs_df, courses_df) -> Tuple["pd.DataFrame", "pd.DataFrame"]:
     """
     Expand regs -> enrollments and join with courses_master using rule:
     join (CourseCode, Program) first; fallback to (CourseCode, Program=ALL).
-    
-    NOTE: Enrollments in terminated courses are silently filtered out (not counted as missing).
-    
-    Args:
-        regs_df: Registrations dataframe
-        courses_df: Active courses dataframe (already filtered for terminated)
-        terminated_courses: Set of terminated (CourseCode, Program) keys
-    
     Returns (enroll_df, missing_df)
     """
     require_pandas()
-    
-    if terminated_courses is None:
-        terminated_courses = set()
 
     rows = []
     for _, r in regs_df.iterrows():
         sid = str(r["ID"]).strip()
         prog = normalize_program(r["Program"])
         for cc in split_courses(r["COURSES"]):
-            course_code = str(cc).strip()
-            # Skip enrollments in terminated courses (check specific program OR fallback to ALL)
-            if (course_code, prog) in terminated_courses:
-                continue
-            if (course_code, "ALL") in terminated_courses:
-                continue
-                
-            rows.append({"StudentID": sid, "Program": prog, "CourseCode": course_code})
+            rows.append({"StudentID": sid, "Program": prog, "CourseCode": str(cc).strip()})
 
     enroll = pd.DataFrame(rows)
     if enroll.empty:
@@ -426,23 +384,6 @@ def generate_courses_report(regs_path: str, courses_master_path: str) -> Tuple["
     courses_df["CourseCode"] = courses_df["CourseCode"].astype(str).str.strip()
     courses_df["Program"] = courses_df["Program"].apply(normalize_program)
     courses_df["ExamGroup"] = courses_df["ExamGroup"].apply(normalize_str)
-    
-    # Handle Terminated column (optional) - track before filtering
-    terminated_courses = set()
-    if "Terminated" not in courses_df.columns:
-        courses_df["Terminated"] = False
-    else:
-        courses_df["Terminated"] = courses_df["Terminated"].apply(
-            lambda x: str(x).strip().upper() in ("YES", "TRUE", "1", "Y", "TERMINATED")
-        )
-        # Store terminated (CourseCode, Program) keys
-        terminated_courses = set(
-            zip(courses_df[courses_df["Terminated"]]["CourseCode"], 
-                courses_df[courses_df["Terminated"]]["Program"])
-        )
-    # Filter out terminated courses
-    courses_df = courses_df[~courses_df["Terminated"]].copy()
-    
     if "CourseName" not in courses_df.columns:
         courses_df["CourseName"] = ""
     courses_df["CourseName"] = courses_df["CourseName"].apply(normalize_str)
@@ -456,14 +397,7 @@ def generate_courses_report(regs_path: str, courses_master_path: str) -> Tuple["
         sid = str(r["ID"]).strip()
         prog = normalize_program(r["Program"])
         for cc in split_courses(r["COURSES"]):
-            course_code = str(cc).strip()
-            # Skip enrollments in terminated courses (program-specific or ALL)
-            if (course_code, prog) in terminated_courses:
-                continue
-            if (course_code, "ALL") in terminated_courses:
-                continue
-                
-            rows.append({"StudentID": sid, "Program": prog, "CourseCode": course_code})
+            rows.append({"StudentID": sid, "Program": prog, "CourseCode": str(cc).strip()})
     enroll = pd.DataFrame(rows)
     if enroll.empty:
         raise ValueError("No enrollments parsed from regs.xlsx.")
@@ -603,10 +537,10 @@ def run_final_exam_scheduler(
     """
     require_pandas()
 
-    regs_df, courses_df, cal_df, cap_df, fixed_df, balance_df, terminated_courses = _load_inputs(
+    regs_df, courses_df, cal_df, cap_df, fixed_df, balance_df = _load_inputs(
         regs_path, courses_master_path, calendar_path, slot_capacity_path, constraints_path
     )
-    enroll_df, missing_df = _build_enrollments(regs_df, courses_df, terminated_courses)
+    enroll_df, missing_df = _build_enrollments(regs_df, courses_df)
 
     diag_res = _compute_diagnostics(regs_df, courses_df, cal_df, cap_df, fixed_df, enroll_df, missing_df)
 
